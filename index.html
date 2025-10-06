@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Investment Tracker</title>
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Configure Tailwind to use Inter font -->
     <script>
         tailwind.config = {
             theme: {
@@ -18,20 +16,15 @@
             }
         }
     </script>
-    <!-- Load React, ReactDOM, and Babel -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.development.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.min.js"></script>
 
-    <!-- Load Firebase (Required for Authentication and Firestore) -->
     <script type="module">
-        // Global variables for Firebase setup, defined outside the React component
-        // NOTE: These variables must be defined here if running locally for the React code to access them.
         window.__app_id = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; 
         window.__firebase_config = typeof __firebase_config !== 'undefined' ? window.__firebase_config : '{}';
         window.__initial_auth_token = typeof __initial_auth_token !== 'undefined' ? window.__initial_auth_token : undefined;
 
-        // --- Firebase Imports and Global Exposure ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
             getAuth, 
@@ -51,7 +44,6 @@
             setLogLevel 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Expose Firebase functions globally for the non-module React/Babel script block
         window.initializeApp = initializeApp;
         window.getAuth = getAuth;
         window.signInAnonymously = signInAnonymously;
@@ -69,20 +61,17 @@
     </script>
 </head>
 <body>
-    <!-- Root element for the React application -->
     <div id="root"></div>
 
-    <!-- The actual React/JSX code, transpiled by Babel -->
     <script type="text/babel">
         const React = window.React;
+        const ReactDOM = window.ReactDOM;
         const useState = React.useState;
         const useEffect = React.useEffect;
 
-        // --- GLOBAL VARIABLES (Provided by the environment) ---
         const rawAppId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
         const appId = rawAppId.replace(/[/\.]/g, '_'); 
 
-        // IMPORTANT: The firebaseConfig object has been explicitly set using the configuration provided by the user.
         const firebaseConfig = {
             apiKey: "AIzaSyAYXFWuQMEwXMz-r1cpiDi3b4Hcv7Bhx5Y",
             authDomain: "my-investment-app-6514b.firebaseapp.com",
@@ -95,11 +84,8 @@
         
         const initialAuthToken = typeof window.__initial_auth_token !== 'undefined' ? window.__initial_auth_token : undefined;
 
-        // Utility to safely retrieve Firebase instances
-        // We use globalDb/globalAuth to distinguish from React's state variables later
         let app = null, globalDb = null, globalAuth = null; 
         
-        // Only attempt to initialize Firebase if a config object is present
         if (Object.keys(firebaseConfig).length > 0) {
             try {
                 app = window.initializeApp(firebaseConfig);
@@ -108,35 +94,24 @@
                 window.setLogLevel('Debug'); 
             } catch (e) {
                 console.error("Firebase initialization failed:", e);
-                // globalDb and globalAuth remain null on failure
             }
         }
 
-        // --- Icons (Lucide React style inline SVGs) ---
         const UserIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
         const PlusIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
         const CheckIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
         const EditIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5L2 22l1.5-5.5L17 3z"/></svg>;
         const TrashIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
-        const DollarSignIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>; // Reusing this for general "finance" icon
+        const DollarSignIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
         const SearchIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
 
-
-        // --- Helper Components ---
-
-        /**
-         * Optimized input field for investment amounts. Defined outside CustomerForm 
-         * to prevent aggressive re-rendering and the unfocus issue.
-         */
         const InvestmentInput = React.memo(({ label, value, onChange }) => (
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{label} (Total Investment)</label>
                 <div className="relative">
-                    {/* Rupee symbol */}
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 font-bold">₹</span>
                     <input
                         type="number"
-                        // Convert value to string to keep input controlled smoothly
                         value={String(value)}
                         onChange={(e) => onChange(e.target.value)}
                         placeholder="0"
@@ -149,10 +124,6 @@
             </div>
         ));
 
-
-        /**
-         * Renders a simple, customizable modal.
-         */
         const Modal = ({ isOpen, onClose, title, children }) => {
             if (!isOpen) return null;
             return (
@@ -175,13 +146,9 @@
             );
         };
 
-        /**
-         * Form for adding or editing customer records and investments.
-         */
-        const CustomerForm = ({ db, userId, customer, onComplete }) => {
+        const CustomerForm = ({ db, collectionPath, customer, onComplete }) => {
             const isEditing = !!customer;
             
-            // Initialize state with existing customer data or defaults
             const [name, setName] = useState(customer && customer.name || '');
             const [mobile, setMobile] = useState(customer && customer.mobile || '');
             const [licInvestment, setLicInvestment] = useState(customer && customer.investments && customer.investments.LIC || '');
@@ -192,15 +159,13 @@
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
-                // Ensure db and userId are available before attempting to save
-                if (!db || !userId || !name || !mobile) {
-                    console.error("Attempted save when DB or User ID was missing.");
+                if (!db || !collectionPath || !name || !mobile) {
+                    console.error("Attempted save when DB or Collection Path was missing.");
                     return;
                 }
 
                 setIsLoading(true);
                 
-                // Ensure inputs are treated as numbers (0 if blank/invalid)
                 const cleanInvestment = (val) => {
                     const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
                     return isNaN(num) ? 0 : num;
@@ -218,7 +183,7 @@
                 };
 
                 try {
-                    const collectionRef = window.collection(db, `artifacts/${appId}/users/${userId}/customers`);
+                    const collectionRef = window.collection(db, collectionPath);
                     
                     if (isEditing) {
                         const customerDocRef = window.doc(db, collectionRef.path, customer.id);
@@ -241,7 +206,6 @@
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <h4 className="text-lg font-bold text-gray-800 border-b pb-2">{isEditing ? 'Edit Customer Details' : 'New Customer Record'}</h4>
                     
-                    {/* Basic Info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <input
                             type="text"
@@ -261,7 +225,6 @@
                         />
                     </div>
 
-                    {/* Investment Inputs */}
                     <div className="space-y-4 pt-4 border-t border-gray-200">
                         <h5 className="text-md font-semibold text-gray-700">Investment Totals (in ₹)</h5>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -289,12 +252,7 @@
             );
         };
 
-
-        /**
-         * Main application component.
-         */
         const App = () => {
-            // New state variables to reliably hold Firebase instances pulled from the global scope
             const [firestoreDb, setFirestoreDb] = useState(globalDb);
             const [firebaseAuth, setFirebaseAuth] = useState(globalAuth);
             const [dbInitError, setDbInitError] = useState(!globalDb ? "Firebase initialization failed. Check the console for details." : null);
@@ -305,16 +263,14 @@
             const [userId, setUserId] = useState(null);
             const [isFormModalOpen, setIsFormModalOpen] = useState(false);
             const [customerToEdit, setCustomerToEdit] = useState(null); 
-            const [searchQuery, setSearchQuery] = useState(''); // New state for search filter
+            const [searchQuery, setSearchQuery] = useState('');
             
-            // State for custom confirmation modal (to replace window.confirm)
             const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-            const [deleteTarget, setDeleteTarget] = useState(null); // { id: string, name: string }
+            const [deleteTarget, setDeleteTarget] = useState(null);
 
+            const CUSTOMER_COLLECTION_PATH = `artifacts/${appId}/public/data/customers`;
 
-            // --- Authentication and Initialization ---
             useEffect(() => {
-                // If global initialization failed, we already have an error message
                 if (!firebaseAuth) {
                     setAuthReady(true);
                     setIsLoading(false);
@@ -322,20 +278,29 @@
                 }
 
                 const authenticate = async () => {
-                    try {
-                        if (initialAuthToken) {
+                    let tokenSignIinSuccess = false;
+                    
+                    if (initialAuthToken) {
+                        try {
                             await window.signInWithCustomToken(firebaseAuth, initialAuthToken);
-                        } else {
-                            await window.signInAnonymously(firebaseAuth);
+                            tokenSignIinSuccess = true;
+                            console.log("Signed in successfully with custom token.");
+                        } catch (error) {
+                            console.warn("Custom token sign-in failed, attempting anonymous fallback:", error);
                         }
-                    } catch (error) {
-                        console.error("Firebase Auth error during sign-in:", error);
-                        
-                        // Check for the error code often associated with disabled providers
-                        if (error.code && error.code === 'auth/operation-not-allowed') {
-                             setDbInitError("Authentication Failed: The Firebase 'Anonymous' sign-in method is currently disabled. Please enable it in your Firebase Console under Authentication > Sign-in method.");
-                        } else {
-                             setDbInitError("Authentication failed: Unable to sign in. Check the console for API key errors or missing tokens.");
+                    }
+
+                    if (!tokenSignIinSuccess) {
+                        try {
+                            await window.signInAnonymously(firebaseAuth);
+                            console.log("Signed in anonymously.");
+                        } catch (error) {
+                            console.error("Firebase Auth error during anonymous sign-in:", error);
+                            if (error.code && error.code === 'auth/operation-not-allowed') {
+                                 setDbInitError("Authentication Failed: The Firebase 'Anonymous' sign-in method is currently disabled. Please enable it in your Firebase Console under Authentication > Sign-in method.");
+                            } else {
+                                 setDbInitError("Authentication failed: Unable to sign in anonymously. Check the console for API key errors.");
+                            }
                         }
                     }
                 };
@@ -344,18 +309,15 @@
                     if (user) {
                         setUserId(user.uid);
                     } else {
-                        // Attempt anonymous sign in if no user is found and no custom token was present
-                        if (!firebaseAuth.currentUser && !initialAuthToken) {
-                            // Run authenticate function again if needed
+                        setUserId(null);
+                        if (!firebaseAuth.currentUser) {
                             authenticate();
                         }
-                        setUserId(null);
                     }
                     setAuthReady(true);
                     setIsLoading(false);
                 });
                 
-                // Initial authentication attempt if auth state is unknown
                 if (!firebaseAuth.currentUser) {
                     authenticate();
                 }
@@ -363,50 +325,44 @@
                 return () => unsubscribe();
             }, [firebaseAuth]);
 
-            // --- Firestore Data Listener ---
             useEffect(() => {
-                if (!firestoreDb || !userId) return;
+                if (!firestoreDb || !userId) return; 
 
-                const customersColRef = window.collection(firestoreDb, `artifacts/${appId}/users/${userId}/customers`);
+                const customersColRef = window.collection(firestoreDb, CUSTOMER_COLLECTION_PATH);
                 const q = window.query(customersColRef);
 
                 const unsubscribe = window.onSnapshot(q, (snapshot) => {
                     const customerList = snapshot.docs.map(doc => ({
                         id: doc.id,
                         ...doc.data(),
-                        // Ensure investments object exists for safety
                         investments: doc.data().investments || { LIC: 0, General: 0, Health: 0, MutualFund: 0 }
                     }));
-                    // Sort customers by name
                     customerList.sort((a, b) => a.name.localeCompare(b.name));
                     setCustomers(customerList);
                     setIsLoading(false);
                 }, (error) => {
                     console.error("Error listening to customers data:", error);
-                    setDbInitError("Data loading failed. Check Firestore rules/connection.");
+                    let errorMessage = "Data loading failed. Check Firestore rules/connection.";
+                    if (error.code === 'permission-denied') {
+                        errorMessage = "Permission Denied: Ensure your Firestore Security Rules allow read/write access for authenticated users (request.auth != null) to the 'public/data/customers' collection.";
+                    }
+                    setDbInitError(errorMessage);
                 });
 
                 return () => unsubscribe();
-            }, [firestoreDb, userId]);
+            }, [firestoreDb, userId, CUSTOMER_COLLECTION_PATH]);
 
-            // --- Filtering Logic ---
             const filteredCustomers = customers.filter(customer => {
-                if (!searchQuery) return true; // Show all if search is empty
+                if (!searchQuery) return true; 
 
                 const query = searchQuery.toLowerCase();
                 
-                // Check Name (case-insensitive)
                 const nameMatch = customer.name.toLowerCase().includes(query);
-                
-                // Check Mobile Number (case-insensitive, allows partial match)
                 const mobileMatch = customer.mobile.toLowerCase().includes(query); 
                 
                 return nameMatch || mobileMatch;
             });
 
-
-            // --- Handlers ---
-            
             const openAddModal = () => {
                 setCustomerToEdit(null);
                 setIsFormModalOpen(true);
@@ -422,24 +378,21 @@
                 setIsFormModalOpen(false);
             };
             
-            // Handler to open the custom confirmation modal
             const openDeleteConfirmation = (customerId, customerName) => {
                 setDeleteTarget({ id: customerId, name: customerName });
                 setIsConfirmModalOpen(true);
             };
 
-            // Deletes an entire customer record using the confirmed target
             const handleDeleteCustomer = async () => {
                 if (!deleteTarget) return;
 
                 const { id: customerId, name: customerName } = deleteTarget;
                 
-                // Close modal and reset target state
                 setIsConfirmModalOpen(false);
                 setDeleteTarget(null);
 
                 try {
-                    const customerDocRef = window.doc(firestoreDb, `artifacts/${appId}/users/${userId}/customers`, customerId);
+                    const customerDocRef = window.doc(firestoreDb, CUSTOMER_COLLECTION_PATH, customerId);
                     await window.deleteDoc(customerDocRef);
                     console.log(`Customer ${customerName} deleted.`);
                 } catch (error) {
@@ -447,7 +400,6 @@
                 }
             };
             
-            // Helper to calculate total investment
             const getTotalInvestment = (investments) => {
                 if (!investments) return 0;
                 return (
@@ -459,7 +411,6 @@
             };
 
             const formatCurrency = (amount) => {
-                // Uses Indian Rupee (INR) formatting
                 return new Intl.NumberFormat('en-IN', {
                     style: 'currency',
                     currency: 'INR', 
@@ -467,8 +418,6 @@
                     maximumFractionDigits: 0,
                 }).format(amount);
             };
-
-            // --- Render Logic ---
 
             if (isLoading || !authReady) {
                 return (
@@ -488,7 +437,7 @@
                             Simplified Investment Tracker
                         </h1>
                         <p className="text-sm text-gray-500 mt-1">
-                            Track customer total investments across key categories.
+                            Tracking is now **SHARED** across all your devices.
                             <span className="block mt-1">User ID: <span className="font-mono text-xs bg-gray-200 p-1 rounded-md">{userId || 'N/A (No Auth)'}</span></span>
                         </p>
                         {dbInitError && (
@@ -503,9 +452,7 @@
                         )}
                     </header>
 
-                    {/* Controls: Search and Add Button */}
                     <div className="mb-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
-                        {/* Search Input */}
                         <div className="relative flex-1 max-w-lg w-full">
                             <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                             <input
@@ -517,17 +464,15 @@
                             />
                         </div>
                         
-                        {/* Add Button */}
                         <button
                             onClick={openAddModal}
                             className="flex items-center justify-center bg-green-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg hover:bg-green-700 transition duration-200 transform hover:scale-[1.02] sm:w-auto"
-                            disabled={!firestoreDb || !userId} // Disable if DB or Auth isn't ready
+                            disabled={!firestoreDb || !userId}
                         >
                             <PlusIcon className="w-5 h-5 mr-2" /> Add New Customer
                         </button>
                     </div>
 
-                    {/* Customer List */}
                     <h2 className="text-2xl font-bold text-gray-800 mb-4">Customer Records ({filteredCustomers.length} of {customers.length})</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {filteredCustomers.map((customer) => {
@@ -585,17 +530,15 @@
                         )}
                     </div>
 
-                    {/* Form Modal (Add/Edit) */}
                     <Modal
                         isOpen={isFormModalOpen}
                         onClose={closeFormModal}
                         title={customerToEdit ? "Edit Customer Investment" : "Add New Customer"}
                     >
-                        {/* Now checking against the React state variables firestoreDb and userId */}
                         {(firestoreDb && userId) ? (
                             <CustomerForm 
                                 db={firestoreDb} 
-                                userId={userId} 
+                                collectionPath={CUSTOMER_COLLECTION_PATH}
                                 customer={customerToEdit}
                                 onComplete={closeFormModal} 
                             />
@@ -606,7 +549,6 @@
                         )}
                     </Modal>
 
-                    {/* Confirmation Modal (Replaces window.confirm) */}
                     <Modal
                         isOpen={isConfirmModalOpen}
                         onClose={() => setIsConfirmModalOpen(false)}
@@ -636,10 +578,9 @@
             );
         };
 
-        const root = document.getElementById('root');
-        // FIX: Replaced ReactDOM.render with ReactDOM.createRoot for React 18 compatibility
         const rootElement = document.getElementById('root');
-        ReactDOM.createRoot(rootElement).render(<App />);
+        ReactDOM.render(<App />, rootElement);
     </script>
 </body>
 </html>
+

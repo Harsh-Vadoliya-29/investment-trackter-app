@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Investment Tracker</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind to use Inter font -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <!-- Load React, ReactDOM, and Babel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.min.js"></script>
+
+    <!-- Load Firebase (Required for Authentication and Firestore) -->
+    <script type="module">
+        // Global variables for Firebase setup, defined outside the React component
+        // NOTE: These variables must be defined here if running locally for the React code to access them.
+        window.__app_id = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; 
+        window.__firebase_config = typeof __firebase_config !== 'undefined' ? window.__firebase_config : '{}';
+        window.__initial_auth_token = typeof __initial_auth_token !== 'undefined' ? window.__initial_auth_token : undefined;
+
+        // --- Firebase Imports and Global Exposure ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            signInWithCustomToken, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            query, 
+            onSnapshot, 
+            doc, 
+            updateDoc, 
+            deleteDoc, 
+            addDoc, 
+            setLogLevel 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Expose Firebase functions globally for the non-module React/Babel script block
+        window.initializeApp = initializeApp;
+        window.getAuth = getAuth;
+        window.signInAnonymously = signInAnonymously;
+        window.signInWithCustomToken = signInWithCustomToken;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.getFirestore = getFirestore;
+        window.collection = collection;
+        window.query = query;
+        window.onSnapshot = onSnapshot;
+        window.doc = doc;
+        window.updateDoc = updateDoc;
+        window.deleteDoc = deleteDoc;
+        window.addDoc = addDoc;
+        window.setLogLevel = setLogLevel;
+    </script>
+</head>
+<body>
+    <!-- Root element for the React application -->
+    <div id="root"></div>
+
+    <!-- The actual React/JSX code, transpiled by Babel -->
+    <script type="text/babel">
+        const React = window.React;
+        const useState = React.useState;
+        const useEffect = React.useEffect;
+
+        // --- GLOBAL VARIABLES (Provided by the environment) ---
+        const rawAppId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
+        const appId = rawAppId.replace(/[/\.]/g, '_'); 
+
+        // IMPORTANT: The firebaseConfig object has been explicitly set using the configuration provided by the user.
+        const firebaseConfig = {
+            apiKey: "AIzaSyAYXFWuQMEwXMz-r1cpiDi3b4Hcv7Bhx5Y",
+            authDomain: "my-investment-app-6514b.firebaseapp.com",
+            projectId: "my-investment-app-6514b",
+            storageBucket: "my-investment-app-6514b.firebasestorage.app",
+            messagingSenderId: "943100607823",
+            appId: "1:943100607823:web:e8eb6b434fc9b064cb593a",
+            measurementId: "G-T7ZVY65S8Y"
+        };
+        
+        const initialAuthToken = typeof window.__initial_auth_token !== 'undefined' ? window.__initial_auth_token : undefined;
+
+        // Utility to safely retrieve Firebase instances
+        // We use globalDb/globalAuth to distinguish from React's state variables later
+        let app = null, globalDb = null, globalAuth = null; 
+        
+        // Only attempt to initialize Firebase if a config object is present
+        if (Object.keys(firebaseConfig).length > 0) {
+            try {
+                app = window.initializeApp(firebaseConfig);
+                globalDb = window.getFirestore(app);
+                globalAuth = window.getAuth(app);
+                window.setLogLevel('Debug'); 
+            } catch (e) {
+                console.error("Firebase initialization failed:", e);
+                // globalDb and globalAuth remain null on failure
+            }
+        }
+
+        // --- Icons (Lucide React style inline SVGs) ---
+        const UserIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+        const PlusIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
+        const CheckIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
+        const EditIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5L2 22l1.5-5.5L17 3z"/></svg>;
+        const TrashIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+        const DollarSignIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>; // Reusing this for general "finance" icon
+        const SearchIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
+
+
+        // --- Helper Components ---
+
+        /**
+         * Optimized input field for investment amounts. Defined outside CustomerForm 
+         * to prevent aggressive re-rendering and the unfocus issue.
+         */
+        const InvestmentInput = React.memo(({ label, value, onChange }) => (
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{label} (Total Investment)</label>
+                <div className="relative">
+                    {/* Rupee symbol */}
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 font-bold">₹</span>
+                    <input
+                        type="number"
+                        // Convert value to string to keep input controlled smoothly
+                        value={String(value)}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder="0"
+                        min="0"
+                        step="0.01"
+                        required
+                        className="p-3 pl-8 border border-gray-300 rounded-lg w-full focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
+                    />
+                </div>
+            </div>
+        ));
+
+
+        /**
+         * Renders a simple, customizable modal.
+         */
+        const Modal = ({ isOpen, onClose, title, children }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={onClose}>
+                    <div 
+                        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl transform transition-all duration-300" 
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                &times;
+                            </button>
+                        </div>
+                        <div className="p-6 max-h-[80vh] overflow-y-auto">
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /**
+         * Form for adding or editing customer records and investments.
+         */
+        const CustomerForm = ({ db, userId, customer, onComplete }) => {
+            const isEditing = !!customer;
+            
+            // Initialize state with existing customer data or defaults
+            const [name, setName] = useState(customer && customer.name || '');
+            const [mobile, setMobile] = useState(customer && customer.mobile || '');
+            const [licInvestment, setLicInvestment] = useState(customer && customer.investments && customer.investments.LIC || '');
+            const [generalInvestment, setGeneralInvestment] = useState(customer && customer.investments && customer.investments.General || '');
+            const [healthInvestment, setHealthInvestment] = useState(customer && customer.investments && customer.investments.Health || '');
+            const [mutualFundInvestment, setMutualFundInvestment] = useState(customer && customer.investments && customer.investments.MutualFund || '');
+            const [isLoading, setIsLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                // Ensure db and userId are available before attempting to save
+                if (!db || !userId || !name || !mobile) {
+                    console.error("Attempted save when DB or User ID was missing.");
+                    return;
+                }
+
+                setIsLoading(true);
+                
+                // Ensure inputs are treated as numbers (0 if blank/invalid)
+                const cleanInvestment = (val) => {
+                    const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+                    return isNaN(num) ? 0 : num;
+                };
+
+                const customerData = {
+                    name,
+                    mobile,
+                    investments: {
+                        LIC: cleanInvestment(licInvestment),
+                        General: cleanInvestment(generalInvestment),
+                        Health: cleanInvestment(healthInvestment),
+                        MutualFund: cleanInvestment(mutualFundInvestment),
+                    },
+                };
+
+                try {
+                    const collectionRef = window.collection(db, `artifacts/${appId}/users/${userId}/customers`);
+                    
+                    if (isEditing) {
+                        const customerDocRef = window.doc(db, collectionRef.path, customer.id);
+                        await window.updateDoc(customerDocRef, customerData);
+                    } else {
+                        await window.addDoc(collectionRef, {
+                            ...customerData,
+                            createdAt: new Date().toISOString(),
+                        });
+                    }
+                    onComplete();
+                } catch (error) {
+                    console.error(`Error ${isEditing ? 'updating' : 'adding'} document:`, error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            return (
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <h4 className="text-lg font-bold text-gray-800 border-b pb-2">{isEditing ? 'Edit Customer Details' : 'New Customer Record'}</h4>
+                    
+                    {/* Basic Info */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Customer Name (Required)"
+                            required
+                            className="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
+                        />
+                        <input
+                            type="tel"
+                            value={mobile}
+                            onChange={(e) => setMobile(e.target.value)}
+                            placeholder="Mobile No (Required)"
+                            required
+                            className="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
+                        />
+                    </div>
+
+                    {/* Investment Inputs */}
+                    <div className="space-y-4 pt-4 border-t border-gray-200">
+                        <h5 className="text-md font-semibold text-gray-700">Investment Totals (in ₹)</h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <InvestmentInput label="LIC/Life" value={licInvestment} onChange={setLicInvestment} />
+                            <InvestmentInput label="General" value={generalInvestment} onChange={setGeneralInvestment} />
+                            <InvestmentInput label="Health" value={healthInvestment} onChange={setHealthInvestment} />
+                            <InvestmentInput label="Mutual Funds" value={mutualFundInvestment} onChange={setMutualFundInvestment} />
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className={`w-full flex justify-center items-center py-3 px-4 rounded-lg text-white font-semibold transition duration-200 shadow-md ${
+                            isLoading ? 'bg-gray-500' : 'bg-indigo-600 hover:bg-indigo-700'
+                        }`}
+                    >
+                        {isLoading ? (isEditing ? 'Saving...' : 'Adding...') : (
+                            <React.Fragment>
+                                <CheckIcon className="w-5 h-5 mr-2" /> {isEditing ? 'Save Changes' : 'Add Customer'}
+                            </React.Fragment>
+                        )}
+                    </button>
+                </form>
+            );
+        };
+
+
+        /**
+         * Main application component.
+         */
+        const App = () => {
+            // New state variables to reliably hold Firebase instances pulled from the global scope
+            const [firestoreDb, setFirestoreDb] = useState(globalDb);
+            const [firebaseAuth, setFirebaseAuth] = useState(globalAuth);
+            const [dbInitError, setDbInitError] = useState(!globalDb ? "Firebase initialization failed. Check the console for details." : null);
+            
+            const [customers, setCustomers] = useState([]);
+            const [isLoading, setIsLoading] = useState(true);
+            const [authReady, setAuthReady] = useState(false);
+            const [userId, setUserId] = useState(null);
+            const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+            const [customerToEdit, setCustomerToEdit] = useState(null); 
+            const [searchQuery, setSearchQuery] = useState(''); // New state for search filter
+            
+            // State for custom confirmation modal (to replace window.confirm)
+            const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+            const [deleteTarget, setDeleteTarget] = useState(null); // { id: string, name: string }
+
+
+            // --- Authentication and Initialization ---
+            useEffect(() => {
+                // If global initialization failed, we already have an error message
+                if (!firebaseAuth) {
+                    setAuthReady(true);
+                    setIsLoading(false);
+                    return; 
+                }
+
+                const authenticate = async () => {
+                    try {
+                        if (initialAuthToken) {
+                            await window.signInWithCustomToken(firebaseAuth, initialAuthToken);
+                        } else {
+                            await window.signInAnonymously(firebaseAuth);
+                        }
+                    } catch (error) {
+                        console.error("Firebase Auth error during sign-in:", error);
+                        
+                        // Check for the error code often associated with disabled providers
+                        if (error.code && error.code === 'auth/operation-not-allowed') {
+                             setDbInitError("Authentication Failed: The Firebase 'Anonymous' sign-in method is currently disabled. Please enable it in your Firebase Console under Authentication > Sign-in method.");
+                        } else {
+                             setDbInitError("Authentication failed: Unable to sign in. Check the console for API key errors or missing tokens.");
+                        }
+                    }
+                };
+
+                const unsubscribe = window.onAuthStateChanged(firebaseAuth, (user) => {
+                    if (user) {
+                        setUserId(user.uid);
+                    } else {
+                        // Attempt anonymous sign in if no user is found and no custom token was present
+                        if (!firebaseAuth.currentUser && !initialAuthToken) {
+                            // Run authenticate function again if needed
+                            authenticate();
+                        }
+                        setUserId(null);
+                    }
+                    setAuthReady(true);
+                    setIsLoading(false);
+                });
+                
+                // Initial authentication attempt if auth state is unknown
+                if (!firebaseAuth.currentUser) {
+                    authenticate();
+                }
+
+                return () => unsubscribe();
+            }, [firebaseAuth]);
+
+            // --- Firestore Data Listener ---
+            useEffect(() => {
+                if (!firestoreDb || !userId) return;
+
+                const customersColRef = window.collection(firestoreDb, `artifacts/${appId}/users/${userId}/customers`);
+                const q = window.query(customersColRef);
+
+                const unsubscribe = window.onSnapshot(q, (snapshot) => {
+                    const customerList = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                        // Ensure investments object exists for safety
+                        investments: doc.data().investments || { LIC: 0, General: 0, Health: 0, MutualFund: 0 }
+                    }));
+                    // Sort customers by name
+                    customerList.sort((a, b) => a.name.localeCompare(b.name));
+                    setCustomers(customerList);
+                    setIsLoading(false);
+                }, (error) => {
+                    console.error("Error listening to customers data:", error);
+                    setDbInitError("Data loading failed. Check Firestore rules/connection.");
+                });
+
+                return () => unsubscribe();
+            }, [firestoreDb, userId]);
+
+            // --- Filtering Logic ---
+            const filteredCustomers = customers.filter(customer => {
+                if (!searchQuery) return true; // Show all if search is empty
+
+                const query = searchQuery.toLowerCase();
+                
+                // Check Name (case-insensitive)
+                const nameMatch = customer.name.toLowerCase().includes(query);
+                
+                // Check Mobile Number (case-insensitive, allows partial match)
+                const mobileMatch = customer.mobile.toLowerCase().includes(query); 
+                
+                return nameMatch || mobileMatch;
+            });
+
+
+            // --- Handlers ---
+            
+            const openAddModal = () => {
+                setCustomerToEdit(null);
+                setIsFormModalOpen(true);
+            };
+
+            const openEditModal = (customer) => {
+                setCustomerToEdit(customer);
+                setIsFormModalOpen(true);
+            };
+
+            const closeFormModal = () => {
+                setCustomerToEdit(null);
+                setIsFormModalOpen(false);
+            };
+            
+            // Handler to open the custom confirmation modal
+            const openDeleteConfirmation = (customerId, customerName) => {
+                setDeleteTarget({ id: customerId, name: customerName });
+                setIsConfirmModalOpen(true);
+            };
+
+            // Deletes an entire customer record using the confirmed target
+            const handleDeleteCustomer = async () => {
+                if (!deleteTarget) return;
+
+                const { id: customerId, name: customerName } = deleteTarget;
+                
+                // Close modal and reset target state
+                setIsConfirmModalOpen(false);
+                setDeleteTarget(null);
+
+                try {
+                    const customerDocRef = window.doc(firestoreDb, `artifacts/${appId}/users/${userId}/customers`, customerId);
+                    await window.deleteDoc(customerDocRef);
+                    console.log(`Customer ${customerName} deleted.`);
+                } catch (error) {
+                    console.error("Error deleting customer:", error);
+                }
+            };
+            
+            // Helper to calculate total investment
+            const getTotalInvestment = (investments) => {
+                if (!investments) return 0;
+                return (
+                    (investments.LIC || 0) +
+                    (investments.General || 0) +
+                    (investments.Health || 0) +
+                    (investments.MutualFund || 0)
+                );
+            };
+
+            const formatCurrency = (amount) => {
+                // Uses Indian Rupee (INR) formatting
+                return new Intl.NumberFormat('en-IN', {
+                    style: 'currency',
+                    currency: 'INR', 
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                }).format(amount);
+            };
+
+            // --- Render Logic ---
+
+            if (isLoading || !authReady) {
+                return (
+                    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+                        <div className="text-lg text-indigo-600 font-medium">
+                            Loading Investment Tracker...
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans">
+                    <header className="mb-8 border-b pb-4">
+                        <h1 className="text-3xl font-extrabold text-gray-900 flex items-center">
+                            <DollarSignIcon className="w-8 h-8 mr-3 text-indigo-600" />
+                            Simplified Investment Tracker
+                        </h1>
+                        <p className="text-sm text-gray-500 mt-1">
+                            Track customer total investments across key categories.
+                            <span className="block mt-1">User ID: <span className="font-mono text-xs bg-gray-200 p-1 rounded-md">{userId || 'N/A (No Auth)'}</span></span>
+                        </p>
+                        {dbInitError && (
+                             <p className="text-sm text-red-600 mt-2 p-2 border border-red-300 bg-red-50 rounded-lg">
+                                **Firebase Error:** {dbInitError}
+                            </p>
+                        )}
+                        {!firestoreDb && !dbInitError && (
+                             <p className="text-sm text-red-600 mt-2 p-2 border border-red-300 bg-red-50 rounded-lg">
+                                Warning: Database is not initialized. Data persistence (saving/loading customers) will not work.
+                            </p>
+                        )}
+                    </header>
+
+                    {/* Controls: Search and Add Button */}
+                    <div className="mb-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+                        {/* Search Input */}
+                        <div className="relative flex-1 max-w-lg w-full">
+                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by Customer Name or Mobile No..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full p-3 pl-10 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm"
+                            />
+                        </div>
+                        
+                        {/* Add Button */}
+                        <button
+                            onClick={openAddModal}
+                            className="flex items-center justify-center bg-green-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg hover:bg-green-700 transition duration-200 transform hover:scale-[1.02] sm:w-auto"
+                            disabled={!firestoreDb || !userId} // Disable if DB or Auth isn't ready
+                        >
+                            <PlusIcon className="w-5 h-5 mr-2" /> Add New Customer
+                        </button>
+                    </div>
+
+                    {/* Customer List */}
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Customer Records ({filteredCustomers.length} of {customers.length})</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {filteredCustomers.map((customer) => {
+                            const totalInvestment = getTotalInvestment(customer.investments);
+                            return (
+                                <div key={customer.id} className="bg-white border border-gray-100 rounded-xl shadow-lg p-6 flex flex-col justify-between transition-shadow duration-300 hover:shadow-xl">
+                                    <div>
+                                        <h3 className="text-xl font-bold text-indigo-600 mb-1">{customer.name}</h3>
+                                        <p className="text-sm text-gray-700 font-medium">{customer.mobile}</p>
+                                        
+                                        <div className="mt-4 pt-4 border-t border-gray-100">
+                                            <h4 className="text-sm font-bold uppercase text-gray-500 mb-3">
+                                                Total Portfolio: 
+                                                <span className="text-green-600 ml-2 text-lg">
+                                                    {formatCurrency(totalInvestment)}
+                                                </span>
+                                            </h4>
+
+                                            <div className="space-y-1 text-sm text-gray-700">
+                                                {Object.entries(customer.investments).map(([type, amount]) => (
+                                                    <div key={type} className="flex justify-between border-b border-dashed pb-0.5 last:border-b-0">
+                                                        <span className="font-medium text-gray-500">{type.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                                                        <span className="font-semibold">{formatCurrency(amount)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex mt-6 space-x-2">
+                                        <button 
+                                            onClick={() => openEditModal(customer)}
+                                            className="flex-1 flex justify-center items-center py-2 px-4 rounded-lg border border-indigo-500 text-indigo-600 text-sm font-medium hover:bg-indigo-50 transition"
+                                            disabled={!firestoreDb || !userId}
+                                        >
+                                            <EditIcon className="w-4 h-4 mr-1" /> Edit Record
+                                        </button>
+                                        <button 
+                                            onClick={() => openDeleteConfirmation(customer.id, customer.name)} 
+                                            className="p-2 text-red-600 hover:text-red-800 transition rounded-lg hover:bg-red-50"
+                                            title="Delete Customer Record"
+                                            disabled={!firestoreDb || !userId}
+                                        >
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {filteredCustomers.length === 0 && !isLoading && (
+                            <div className="md:col-span-4 p-12 text-center bg-white rounded-xl shadow-inner text-gray-500">
+                                <UserIcon className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                                {searchQuery ? `No customers found matching "${searchQuery}".` : `No customer records found. Click "Add New Customer" to begin tracking investments.`}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Form Modal (Add/Edit) */}
+                    <Modal
+                        isOpen={isFormModalOpen}
+                        onClose={closeFormModal}
+                        title={customerToEdit ? "Edit Customer Investment" : "Add New Customer"}
+                    >
+                        {/* Now checking against the React state variables firestoreDb and userId */}
+                        {(firestoreDb && userId) ? (
+                            <CustomerForm 
+                                db={firestoreDb} 
+                                userId={userId} 
+                                customer={customerToEdit}
+                                onComplete={closeFormModal} 
+                            />
+                        ) : (
+                            <p className="text-red-500 p-4 border border-red-300 bg-red-50 rounded-lg">
+                                {dbInitError || "Database connection or user authentication is not ready. Please ensure Firebase is configured and try refreshing the page."}
+                            </p>
+                        )}
+                    </Modal>
+
+                    {/* Confirmation Modal (Replaces window.confirm) */}
+                    <Modal
+                        isOpen={isConfirmModalOpen}
+                        onClose={() => setIsConfirmModalOpen(false)}
+                        title="Confirm Deletion"
+                    >
+                        <p className="text-gray-700 mb-6">
+                            Are you sure you want to permanently delete the entire record for 
+                            <span className="font-semibold text-indigo-600 ml-1">{deleteTarget && deleteTarget.name}</span>? 
+                            This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={() => setIsConfirmModalOpen(false)}
+                                className="py-2 px-4 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteCustomer}
+                                className="py-2 px-4 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition"
+                            >
+                                Delete Permanently
+                            </button>
+                        </div>
+                    </Modal>
+                </div>
+            );
+        };
+
+        const root = document.getElementById('root');
+        // FIX: Replaced ReactDOM.render with ReactDOM.createRoot for React 18 compatibility
+        const rootElement = document.getElementById('root');
+        ReactDOM.createRoot(rootElement).render(<App />);
+    </script>
+</body>
+</html>
